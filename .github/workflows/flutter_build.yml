@@ -1,52 +1,103 @@
-name: Flutter Build & Test
+name: Flutter Build & Release
 
 on:
-  push:
-    branches: [ "main", "master" ]
   pull_request:
-    branches: [ "main", "master" ]
+  push:
+    branches:
+      - master
+    tags:
+      - 'v*' # triggers release job for tags like v1.0.0
+  workflow_dispatch:
+
+concurrency:
+  group: flutter-build-${{ github.ref }}
+  cancel-in-progress: true
 
 jobs:
-  build:
+  test-and-build:
+    name: Test & Build (PR/Branch)
     runs-on: ubuntu-latest
 
     steps:
-      # Step 1: Check out repository code
-      - name: Checkout repository
+      - name: Checkout
         uses: actions/checkout@v4
 
-      # Step 2: Set up Java environment (required for Android builds)
-      - name: Set up Java Development Kit (JDK)
+      - name: Setup Java (for Android toolchain)
         uses: actions/setup-java@v4
         with:
-          distribution: 'temurin'
+          distribution: temurin
           java-version: '17'
 
-      # Step 3: Set up Flutter environment
-      - name: Set up Flutter
+      - name: Setup Flutter
         uses: subosito/flutter-action@v2
         with:
-          channel: 'stable'
+          channel: stable
           cache: true
 
-      # Step 4: Install dependencies
-      - name: Install dependencies
+      - name: Flutter pub get
         run: flutter pub get
 
-      # Step 5: Run static analysis & unit tests
-      - name: Analyze code
+      - name: Analyze
         run: flutter analyze
 
       - name: Run tests
-        run: flutter test
+        run: flutter test --no-pub
 
-      # Step 6: Build Android APK (or replace with appbundle)
-      - name: Build Android APK
-        run: flutter build apk --release --split-per-abi
+      - name: Build debug APK (branch/pr validation)
+        run: flutter build apk --debug
 
-      # Step 7: Upload the built APK as a GitHub Action artifact
-      - name: Upload APK Artifact
+      - name: Upload debug APK artifact
         uses: actions/upload-artifact@v4
         with:
-          name: release-apk
-          path: build/app/outputs/flutter-apk/*.apk
+          name: app-debug-apk
+          path: build/app/outputs/flutter-apk/app-debug.apk
+          if-no-files-found: error
+
+  release-apk:
+    name: Release APK (Tag)
+    if: startsWith(github.ref, 'refs/tags/v')
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write # required to create/update GitHub Releases
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Java (for Android toolchain)
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '17'
+
+      - name: Setup Flutter
+        uses: subosito/flutter-action@v2
+        with:
+          channel: stable
+          cache: true
+
+      - name: Flutter pub get
+        run: flutter pub get
+
+      # Optional but recommended to keep quality gate on releases too
+      - name: Analyze
+        run: flutter analyze
+
+      - name: Run tests
+        run: flutter test --no-pub
+
+      - name: Build release APK
+        run: flutter build apk --release
+
+      - name: Upload release APK artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: app-release-apk
+          path: build/app/outputs/flutter-apk/app-release.apk
+          if-no-files-found: error
+
+      - name: Create GitHub Release and upload APK
+        uses: softprops/action-gh-release@v2
+        with:
+          generate_release_notes: true
+          files: build/app/outputs/flutter-apk/app-release.apk
