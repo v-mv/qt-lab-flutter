@@ -342,10 +342,10 @@ List<WaveSample> buildWaveSamples(
             (config.k0 / (config.mass * config.omega)) *
                 math.sin(config.omega * time);
       } else if (config.potential == PotentialKind.infiniteWell) {
-        // Bouncing logic in 8-unit well (-4 to 4)
+        // Bouncing logic in 10-unit well (-5 to 5)
         final raw = config.x0 + (config.k0 / config.mass) * time;
-        final shifted = (raw + 4) % 16; // Period 16 for full round trip
-        centre = shifted < 8 ? shifted - 4 : 12 - shifted;
+        final shifted = (raw + 5) % 20; // Period 20 for full round trip
+        centre = shifted < 10 ? shifted - 5 : 15 - shifted;
       } else {
         centre = config.x0 + config.k0 / config.mass * time;
       }
@@ -384,12 +384,11 @@ List<WaveSample> buildWaveSamples(
   });
 }
 
-double potentialAt(QuantumConfig config, double x) => _potential(config, x);
 double eigenEnergy(QuantumConfig config, int n) => _eigenEnergy(config, n);
 
 double _potential(QuantumConfig config, double x) => switch (config.potential) {
   PotentialKind.free => 0,
-  PotentialKind.infiniteWell => x.abs() > 4 ? 3.5 : 0,
+  PotentialKind.infiniteWell => x.abs() > 4.95 ? 3.5 : 0,
   PotentialKind.harmonic => .5 * config.omega * config.omega * x * x,
   PotentialKind.barrier =>
     x.abs() < config.barrierWidth / 2 ? config.barrierHeight : 0,
@@ -398,8 +397,8 @@ double _potential(QuantumConfig config, double x) => switch (config.potential) {
 
 double _eigenfunction(QuantumConfig config, int n, double x) {
   if (config.potential == PotentialKind.infiniteWell) {
-    if (x.abs() > 4) return 0;
-    return 0.5 * math.sin(n * math.pi * (x + 4) / 8);
+    if (x.abs() > 5) return 0;
+    return (1 / math.sqrt(5)) * math.sin(n * math.pi * (x + 5) / 10);
   }
   final y = math.sqrt(config.omega) * x;
   final gaussian =
@@ -420,5 +419,5 @@ double _eigenEnergy(QuantumConfig config, int n) =>
           math.pi *
           config.hbar *
           config.hbar /
-          (2 * config.mass * 64)
+          (2 * config.mass * 100)
     : config.hbar * config.omega * (n - .5);

@@ -1,5 +1,5 @@
 import 'package:flutter_test/flutter_test.dart';
-import 'package:quantum_wave_lab_flutter/main.dart';
+import 'package:quantum_wave_lab_flutter/quantum.dart';
 
 void main() {
   test('all textbook wave-function cases generate finite chart samples', () {

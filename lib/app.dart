@@ -296,16 +296,13 @@ class ExplorePage extends StatelessWidget {
             ),
             MetricTile(
               label: '⟨p⟩',
-              value: controller.config.k0.toStringAsFixed(2),
+              value: _expectedP(samples, controller.config).toStringAsFixed(2),
               suffix: 'ℏ / a.u.',
               accent: colors.secondary,
             ),
             MetricTile(
               label: 'Energy',
-              value: eigenEnergy(
-                controller.config,
-                controller.activeN,
-              ).toStringAsFixed(3),
+              value: _expectedEnergy(controller).toStringAsFixed(3),
               suffix: 'a.u.',
               accent: colors.tertiary,
             ),
@@ -410,28 +407,44 @@ class WaveChart extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final colors = Theme.of(context).colorScheme;
     return Card(
       child: Padding(
         padding: const EdgeInsets.all(14),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Text(
-              'LIVE WAVE FUNCTION',
-              style: Theme.of(context).textTheme.labelSmall?.copyWith(
-                letterSpacing: 1,
-                fontWeight: FontWeight.w800,
-                color: Theme.of(context).colorScheme.onSurfaceVariant,
-              ),
+            Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                Text(
+                  'LIVE WAVE FUNCTION',
+                  style: Theme.of(context).textTheme.labelSmall?.copyWith(
+                    letterSpacing: 1,
+                    fontWeight: FontWeight.w800,
+                    color: colors.onSurfaceVariant,
+                  ),
+                ),
+                Wrap(
+                  spacing: 10,
+                  children: [
+                    _legendItem('Re(ψ)', colors.primary),
+                    _legendItem('Im(ψ)', colors.error),
+                    _legendItem('|ψ|²', colors.secondary),
+                    _legendItem('V(x)', colors.tertiary),
+                  ],
+                ),
+              ],
             ),
             const SizedBox(height: 8),
             SizedBox(
               height: 224,
               child: CustomPaint(
-                painter: WavePainter(samples, Theme.of(context).colorScheme),
+                painter: WavePainter(samples, colors),
                 child: const SizedBox.expand(),
               ),
             ),
+            const SizedBox(height: 4),
             Row(
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
@@ -443,6 +456,28 @@ class WaveChart extends StatelessWidget {
           ],
         ),
       ),
+    );
+  }
+
+  Widget _legendItem(String label, Color color) {
+    return Row(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        Container(
+          width: 8,
+          height: 8,
+          decoration: BoxDecoration(color: color, shape: BoxShape.circle),
+        ),
+        const SizedBox(width: 4),
+        Text(
+          label,
+          style: TextStyle(
+            fontSize: 10,
+            fontWeight: FontWeight.w700,
+            color: color,
+          ),
+        ),
+      ],
     );
   }
 }
@@ -458,33 +493,78 @@ class WavePainter extends CustomPainter {
       RRect.fromRectAndRadius(Offset.zero & size, const Radius.circular(18)),
       Paint()..color = colors.surfaceContainerHigh,
     );
-    final mid = size.height * .42;
+    final mid = size.height * .38;
+    final probBaseline = size.height * .88;
     final grid = Paint()
-      ..color = colors.outlineVariant
+      ..color = colors.outlineVariant.withAlpha(128)
       ..strokeWidth = 1;
+
+    // Zero baselines
     canvas.drawLine(Offset(10, mid), Offset(size.width - 10, mid), grid);
     canvas.drawLine(
-      Offset(10, size.height * .78),
-      Offset(size.width - 10, size.height * .78),
+      Offset(10, probBaseline),
+      Offset(size.width - 10, probBaseline),
       grid,
     );
-    _line(canvas, size, (sample) => sample.real, mid, colors.primary, 1.15);
-    _line(canvas, size, (sample) => sample.imaginary, mid, colors.error, 1.15);
-    _line(
-      canvas,
-      size,
-      (sample) => sample.probability,
-      size.height * .8,
-      colors.secondary,
-      .52,
-    );
+
+    // 1. Draw Probability Density |ψ|² with filled region
+    _drawProbabilityFill(canvas, size, probBaseline);
+
+    // 2. Draw Potential V(x)
     _line(
       canvas,
       size,
       (sample) => sample.potential,
       mid,
-      colors.tertiary,
-      .16,
+      colors.tertiary.withAlpha(216),
+      .18,
+      strokeWidth: 2.0,
+    );
+
+    // 3. Draw Real Part Re(ψ)
+    _line(canvas, size, (sample) => sample.real, mid, colors.primary, 1.25);
+
+    // 4. Draw Imaginary Part Im(ψ)
+    _line(canvas, size, (sample) => sample.imaginary, mid, colors.error, 1.25);
+  }
+
+  void _drawProbabilityFill(Canvas canvas, Size size, double baseline) {
+    final strokePath = Path();
+    final fillPath = Path();
+
+    fillPath.moveTo(10, baseline);
+
+    for (var i = 0; i < samples.length; i++) {
+      final x = 10 + i * (size.width - 20) / (samples.length - 1);
+      final prob = samples[i].probability.clamp(0.0, 3.0);
+      final y = baseline - prob * size.height * 0.45;
+
+      if (i == 0) {
+        strokePath.moveTo(x, y);
+      } else {
+        strokePath.lineTo(x, y);
+      }
+      fillPath.lineTo(x, y);
+    }
+
+    fillPath.lineTo(10 + (size.width - 20), baseline);
+    fillPath.close();
+
+    // Fill under probability density
+    canvas.drawPath(
+      fillPath,
+      Paint()
+        ..color = colors.secondary.withAlpha(56)
+        ..style = PaintingStyle.fill,
+    );
+
+    // Stroke probability density line
+    canvas.drawPath(
+      strokePath,
+      Paint()
+        ..color = colors.secondary
+        ..strokeWidth = 2.0
+        ..style = PaintingStyle.stroke,
     );
   }
 
@@ -494,17 +574,18 @@ class WavePainter extends CustomPainter {
     double Function(WaveSample) select,
     double baseline,
     Color color,
-    double scale,
-  ) {
+    double scale, {
+    double strokeWidth = 2.2,
+  }) {
     final path = Path();
     for (var i = 0; i < samples.length; i++) {
       final x = 10 + i * (size.width - 20) / (samples.length - 1);
       final y =
           baseline -
-          select(samples[i]).clamp(-2, 2).toDouble() *
+          select(samples[i]).clamp(-2.5, 2.5).toDouble() *
               size.height *
               scale *
-              .28;
+              .22;
       if (i == 0) {
         path.moveTo(x, y);
       } else {
@@ -515,7 +596,7 @@ class WavePainter extends CustomPainter {
       path,
       Paint()
         ..color = color
-        ..strokeWidth = 2.2
+        ..strokeWidth = strokeWidth
         ..style = PaintingStyle.stroke,
     );
   }
@@ -1105,4 +1186,52 @@ double _expectedX(List<WaveSample> samples) {
     (sum, item) => sum + item.probability,
   );
   return denominator == 0 ? 0 : numerator / denominator;
+}
+
+double _expectedP(List<WaveSample> samples, QuantumConfig config) {
+  if (samples.length < 2) return 0;
+  final dx = (samples.last.x - samples.first.x) / (samples.length - 1);
+  double pNumerator = 0;
+  double probDenominator = 0;
+
+  for (var i = 1; i < samples.length - 1; i++) {
+    final dReal = (samples[i + 1].real - samples[i - 1].real) / (2 * dx);
+    final dImag =
+        (samples[i + 1].imaginary - samples[i - 1].imaginary) / (2 * dx);
+    final pDensity =
+        config.hbar * (samples[i].real * dImag - samples[i].imaginary * dReal);
+    pNumerator += pDensity;
+    probDenominator += samples[i].probability;
+  }
+
+  return probDenominator == 0 ? 0 : pNumerator / probDenominator;
+}
+
+double _expectedEnergy(QuantumController controller) {
+  if (controller.mode == WaveMode.eigenstate) {
+    return eigenEnergy(controller.config, controller.activeN);
+  } else if (controller.mode == WaveMode.superposition) {
+    final active = controller.terms.where((t) => t.enabled).toList();
+    if (active.isEmpty) return 0;
+    double totalWeight = 0;
+    double weightedEnergy = 0;
+    for (final t in active) {
+      final w = t.amplitude * t.amplitude;
+      totalWeight += w;
+      weightedEnergy += w * eigenEnergy(controller.config, t.n);
+    }
+    return totalWeight == 0 ? 0 : weightedEnergy / totalWeight;
+  } else {
+    final k0 = controller.config.k0;
+    final m = controller.config.mass;
+    final eKin = (k0 * k0) / (2 * m);
+    final samples = controller.samples;
+    final numV = samples.fold<double>(
+      0,
+      (sum, s) => sum + s.potential * s.probability,
+    );
+    final denV = samples.fold<double>(0, (sum, s) => sum + s.probability);
+    final eV = denV == 0 ? 0.0 : numV / denV;
+    return eKin + eV;
+  }
 }
