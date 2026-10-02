@@ -1,0 +1,12 @@
+QT Lab allows students, educators, and physics enthusiasts to explore quantum wave functions through real-time interactive numerical and analytical simulations.
+
+It provides intuition for quantum phenomena—such as wave-packet dispersion, barrier tunneling, harmonic oscillation, and quantum interference—by rendering complex wave functions dynamically.
+
+Features:
+* Live Wave Function Visualization: View real and imaginary parts alongside probability density.
+* Wave-Function Library: Load textbook cases like Free Gaussian packets, Infinite Wells, and Harmonic Oscillators.
+* Interference Workbench: Build custom superpositions and tune amplitudes and phases.
+* Material You Integration: Dynamic color theming that adapts to your device's wallpaper (Android 12+).
+* 100% Free and Open Source.
+
+Built with Flutter and Material 3.
