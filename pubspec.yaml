@@ -1,7 +1,7 @@
 name: quantum_wave_lab_flutter
 description: "QT Lab: An interactive quantum mechanics simulator built with Flutter and Material 3."
 publish_to: 'none'
-version: 1.0.1+2
+version: 1.0.2+3
 
 environment:
   sdk: ^3.13.1
