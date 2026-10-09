@@ -1,0 +1,7 @@
+- Fix Infinite Square Well boundaries (x ∈ [-5, 5])
+- Correct energy eigenvalues for standing waves
+- Add dynamic spatial differentiation for momentum expectation ⟨p⟩
+- Add weighted energy expectation ⟨E⟩ for superpositions
+- Enhance probability density |ψ|² visuals with shading and legend
+- Add Material You dynamic color theming and custom Android 13+ monochrome launcher icons
+- Update app name to QT Lab
