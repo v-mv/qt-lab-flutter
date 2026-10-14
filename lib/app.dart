@@ -309,44 +309,66 @@ class ExplorePage extends StatelessWidget {
           ],
         ),
         const SizedBox(height: 16),
-        Card(
-          color: colors.secondaryContainer,
-          child: Padding(
-            padding: const EdgeInsets.all(16),
-            child: Row(
-              children: [
-                Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(
-                        'NUMERICAL VS. ANALYTICAL',
-                        style: theme.textTheme.labelSmall?.copyWith(
-                          letterSpacing: 1,
-                          fontWeight: FontWeight.w800,
-                        ),
+        if (controller.mode == WaveMode.packet)
+          Card(
+            color: colors.secondaryContainer,
+            child: Padding(
+              padding: const EdgeInsets.all(16),
+              child: Row(
+                children: [
+                  Icon(Icons.info_outline, color: colors.tertiary),
+                  const SizedBox(width: 12),
+                  Expanded(
+                    child: Text(
+                      'Wave packet dispersion is slowed down visually to keep the interference structure readable on screen over longer time periods.',
+                      style: theme.textTheme.bodySmall?.copyWith(
+                        color: colors.onSurfaceVariant,
                       ),
-                      const SizedBox(height: 3),
-                      Text(
-                        'Finite-difference reference',
-                        style: theme.textTheme.titleSmall?.copyWith(
-                          fontWeight: FontWeight.w700,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          )
+        else
+          Card(
+            color: colors.secondaryContainer,
+            child: Padding(
+              padding: const EdgeInsets.all(16),
+              child: Row(
+                children: [
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          'NUMERICAL VS. ANALYTICAL',
+                          style: theme.textTheme.labelSmall?.copyWith(
+                            letterSpacing: 1,
+                            fontWeight: FontWeight.w800,
+                          ),
                         ),
-                      ),
-                    ],
+                        const SizedBox(height: 3),
+                        Text(
+                          'Finite-difference reference',
+                          style: theme.textTheme.titleSmall?.copyWith(
+                            fontWeight: FontWeight.w700,
+                          ),
+                        ),
+                      ],
+                    ),
                   ),
-                ),
-                Text(
-                  '${controller.numericalError.toStringAsFixed(3)}%',
-                  style: theme.textTheme.titleLarge?.copyWith(
-                    color: colors.tertiary,
-                    fontWeight: FontWeight.w800,
+                  Text(
+                    '${controller.numericalError.toStringAsFixed(3)}%',
+                    style: theme.textTheme.titleLarge?.copyWith(
+                      color: colors.tertiary,
+                      fontWeight: FontWeight.w800,
+                    ),
                   ),
-                ),
-              ],
+                ],
+              ),
             ),
           ),
-        ),
         const SizedBox(height: 16),
         OutlinedButton.icon(
           onPressed: onOpenLibrary,
@@ -1224,7 +1246,15 @@ double _expectedEnergy(QuantumController controller) {
   } else {
     final k0 = controller.config.k0;
     final m = controller.config.mass;
-    final eKin = (k0 * k0) / (2 * m);
+    final hbar = controller.config.hbar;
+    final sigma = controller.config.sigma;
+
+    // Momentum spread for a Gaussian wave packet: σ_p = ℏ / (√2 * σ)
+    final sigmaP = hbar / (math.sqrt(2) * sigma);
+    
+    // Total kinetic energy: E_kin = (⟨p⟩² + (σ_p)²)/2m
+    final eKin = (k0 * k0 + sigmaP * sigmaP) / (2 * m);
+    
     final samples = controller.samples;
     final numV = samples.fold<double>(
       0,
