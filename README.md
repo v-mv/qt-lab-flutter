@@ -46,7 +46,6 @@ To verify theoretical values, QT Lab uses a 3-point **finite-difference discreti
 - **Framework**: Flutter (Dart 3.x)
 - **Material 3 & Material You**: Dynamic color adaptation on Android 12+ using wallpaper themes.
 - **Edge-to-Edge Design**: Native system bar inset handling for modern mobile layouts.
-- **Platforms**: Android, iOS, Web, and Desktop.
 
 ---
 
